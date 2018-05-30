@@ -18,18 +18,45 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.context.support.ServletRequestHandledEvent;
 
 @SpringBootApplication
 public class BasicApplication {
-	
+
 	private static final Logger log = LoggerFactory.getLogger(BasicApplication.class);
 
 	public static void main(String[] args) {
 		ApplicationContext context = SpringApplication.run(BasicApplication.class, args);
-		
+
 	}
-	
+
+	// 获取git信息
+	@Bean
+	public static PropertySourcesPlaceholderConfigurer placeholderConfigurer() {
+		PropertySourcesPlaceholderConfigurer propsConfig = new PropertySourcesPlaceholderConfigurer();
+		propsConfig.setLocation(new ClassPathResource("git.properties"));
+		propsConfig.setIgnoreResourceNotFound(true);
+		propsConfig.setIgnoreUnresolvablePlaceholders(true);
+		return propsConfig;
+	}
+
+	// 判断是否能访问互联网
+	@Bean
+	public HealthIndicator myHealth() {
+		return () -> {
+			// return Health.up().build();
+			double rd = Math.random() * 2;
+			if (rd > 1) {
+				return Health.up().build();
+			} else {
+				return Health.down().withDetail("Error Code", 404).build();
+			}
+		};
+	}
+
+	// 使用log4j2来做日志系统
 	@Bean
 	public CommandLineRunner runner() {
 		return args -> {
@@ -39,45 +66,46 @@ public class BasicApplication {
 			for (String arg : args) {
 				System.out.println(arg);
 			}
-			
 		};
 	}
-	
-	@Bean
-	public ApplicationRunner appRunner() {
-		return args -> {
-			System.out.println();
-			System.out.println("Application Runner:");
-			for (String opt : args.getOptionNames()) {
-				System.out.print(opt);
-				System.out.print("->");
-				System.out.println(args.getOptionValues(opt).stream().collect(Collectors.joining(",", "[", "]")));
-				// String.join(",", args.getOptionValues(opt));
-			}
-		};
-	}
-	
-	@Autowired
-	private CounterService counterService;
-	
+
+	// 访问xyz信息
 	@Bean
 	public ApplicationListener<ApplicationEvent> helloListener() {
-		final String HELLO_URL = "/hello";
+		final String HELLO_URL = "/xyz";
 
 		return (ApplicationEvent event) -> {
 			if (event instanceof ServletRequestHandledEvent) {
 				ServletRequestHandledEvent e = (ServletRequestHandledEvent) event;
 				if (e.getRequestUrl().equals(HELLO_URL))
-					counterService.increment("hello.hits");
+					counterService.increment("xyz.hits");
 			}
 		};
 	}
+
+	
+	@Autowired
+	FooProperties fooProperties;
+	
+	@Autowired
+	TaijCongfiguration taijCongfiguration;
 	
 	@Bean
-	public HealthIndicator myHealth() {
-		return () -> {
-//			return Health.up().build();
-			return Health.down().withDetail("Error Code", 404).build();
+	public ApplicationRunner appRunner() {
+		return args -> {
+			System.out.println("--------------");
+			System.out.println(fooProperties);
+			System.out.println(taijCongfiguration);
+			System.out.println("Application Runner:");
+			for (String opt : args.getOptionNames()) {
+				System.out.print(opt);
+				System.out.print("->");
+				System.out.println(args.getOptionValues(opt).stream().collect(Collectors.joining(",", "[", "]")));
+			}
 		};
 	}
+
+	@Autowired
+	private CounterService counterService;
+
 }
